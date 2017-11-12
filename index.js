@@ -3,25 +3,78 @@ var path = require('path');
 var engine = require('php-parser');
 
 
+// traversing AST
 
 function inspect(ast) {
-  switch(ast.kind) {
-  case 'program': 
-    inspect_program(ast);
-    break;
-  case 'call':
+//  console.log(ast.kind);
+
+  if (ast == null) {
+    return;
+  }
+
+  // 
+  if (ast.hasOwnProperty('children')) {
+    inspect_body(ast.children);
+  }
+  if (ast.hasOwnProperty('body')) {
+    inspect_body(ast.body);
+  }
+  if (ast.hasOwnProperty('alternate')) {
+    inspect_body(ast.alternate);
+  }
+
+  if (ast.kind === 'call') {
     inspect_call(ast);
-    break;
+  }
+
+  // switch(ast.kind) {
+  //   case 'block':
+  //   case 'program': 
+  //   case 'namespace':
+  //     inspect_body(ast.children);
+  //     break;
+  //   case 'call':
+  //     inspect_call(ast);
+  //     break;
+  //   case 'if': 
+  //     inspect_body(ast.body);
+  //     inspect_body(ast.alternate);
+  //     break;
+  //   case 'do':
+  //   case 'while':
+  //   case 'for':
+  //   case 'foreach':
+  //   case 'switch':
+  //   case 'case': // body is Block or null
+  //   case 'catch':
+  //   case 'class':
+  //   case 'interface':
+  //   case 'trait':
+  //   case 'function':
+  //   case 'method':
+  //     inspect_body(ast.body);
+  //     break;
+  //   case 'try':
+  //     // catches ???
+  //   default:
+  //     console.log("*** WHATSUP?? ", ast.kind)
+  //     break;
+  // }
+}
+
+// body ::= block | null | array<decl> | stmt | array<node>
+function inspect_body(body) {
+//  console.log(ast)
+  if (ast == null || ast == false) { 
+    return;
+  } else if (Array.isArray(body)) {
+      body.forEach(function(element) {
+        inspect(element);
+      }, this);
+  } else {
+    inspect(body);
   }
 }
-
-function inspect_program(ast) {
-  console.log('inspect program')
-  ast.children.forEach(function(element) {
-    inspect(element);
-  }, this);
-}
-
 
 function is_sql_query_function(what) {
   if (what.kind == 'identifier') {
@@ -33,16 +86,38 @@ function is_sql_query_function(what) {
   return false;
 }
 
+// htmlentities / htmlspecialchars
 
 function inspect_call(ast) {
-  console.log('call.what ', ast.what)
   if (is_sql_query_function(ast.what)) {
     inspect_sql_query_string(ast.arguments[0]);
   }
 }
 
+/** flatten linked list of boolean operator `.'
+  * @param ast: AST of the first argument of sql-query functions
+  * @returns: array of each element
+  */
+function flatten_string_concatenation(ast) {
+  if (ast.kind === 'bin' && ast.type === '.') {
+    var rest = flatten_string_concatenation(ast.left);
+    return rest.concat(flatten_string_concatenation(ast.right));
+  } else if (ast.kind === 'encapsed') {
+    // unfold encapsed string, like "hello, {$name}!"
+    return ast.value.reduce(function(prev, current, index, arr) {
+      return prev.concat(flatten_string_concatenation(current));
+    }, []);
+  } else if (ast.kind === 'parenthesis') {
+    // (hoge) => hoge
+    return flatten_string_concatenation(ast.inner);
+  } else {
+    return [ast];
+  }
+}
+
 function inspect_sql_query_string(ast) {
-  console.log(ast);
+  var flatten = flatten_string_concatenation(ast);
+  console.log(flatten);
 }
 
 // initialize a new parser instance
@@ -56,18 +131,14 @@ var parser = new engine({
   }
 });
 
+var buffer = fs.readFileSync('/dev/stdin', 'utf8');
 
-var buffer = 'hogehoge <?php $hoge->sqli->query("SELECT * from table where id = " . $var); ?>'
+try {
+  var ast = parser.parseCode(buffer, "stdin");
+  inspect(ast);
+} catch (e) {
+  console.log(`ERROR: syntax error in '${e.fileName}' at ${e.lineNumber}:${e.columnNumber}`);
+  console.log(`ERROR: no analysis done`);
 
-// Retrieve the AST from the specified source
-var eval = parser.parseCode(buffer);
-
-// Load a static file (Note: this file should exist on your computer)
-// var phpFile = fs.readFileSync( './example.php' );
- 
-inspect(eval);
-
-// Log out results
-console.log('Eval parse:', eval);
-// console.log(eval.kind)
-// console.log( 'File parse:', parser.parseCode(phpFile) );
+  throw e;
+}
