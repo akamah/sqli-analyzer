@@ -5,11 +5,11 @@ var engine = require('php-parser');
 
 //////////// traversing AST
 function inspect(ast) {
-//  console.log(ast.kind);
+  //  console.log(ast.kind);
   if (ast == null) {
     return;
   }
-
+  
   // 
   if (ast.hasOwnProperty('children')) {
     inspect_body(ast.children);
@@ -20,7 +20,7 @@ function inspect(ast) {
   if (ast.hasOwnProperty('alternate')) {
     inspect_body(ast.alternate);
   }
-
+  
   if (ast.kind === 'call') {
     inspect_call(ast);
   }
@@ -28,13 +28,13 @@ function inspect(ast) {
 
 // body ::= block | null | array<decl> | stmt | array<node>
 function inspect_body(body) {
-//  console.log(ast)
-  if (ast == null || ast == false) { 
+  //  console.log(ast)
+  if (body == null || body == false) { 
     return;
   } else if (Array.isArray(body)) {
-      body.forEach(function(element) {
-        inspect(element);
-      }, this);
+    body.forEach(function(element) {
+      inspect(element);
+    }, this);
   } else {
     inspect(body);
   }
@@ -47,38 +47,38 @@ function is_global_function_call(what) {
 
 function is_mysqli_staticlookup(what) {
   return what.kind === 'staticlookup' && 
-         what.what.kind === 'identifier' &&
-         what.what.name === 'mysqli' &&
-         what.offset.kind === 'constref';
+  what.what.kind === 'identifier' &&
+  what.what.name === 'mysqli' &&
+  what.offset.kind === 'constref';
 }
 
 function is_PDO_propertylookup(what) {
   return what.kind === 'propertylookup' && 
-         what.offset.kind === 'constref';
+  what.offset.kind === 'constref';
 }
 
 
 function is_sql_query_function(what) {
   if (is_global_function_call(what)) {
     return ['mysql_query', 'mysqli_query'].includes(what.name);
-} else if (is_PDO_propertylookup(what)) {
+  } else if (is_PDO_propertylookup(what)) {
     return what.offset.name === 'query';
   } else if (is_mysqli_staticlookup(what)) {
     return what.offset.name === 'query';
   }
-
+  
   return false;
 }
 
 function is_sql_escape_function(what) {
   if (is_global_function_call(what)) {
     return ['mysql_escape_string', 'mysql_real_escape_string', 'mysqli_escape_string', 'mysqli_real_escape_string'].includes(what.name);
-} else if (is_PDO_propertylookup(what)) {
+  } else if (is_PDO_propertylookup(what)) {
     return what.offset.name === 'quote';
   } else if (is_mysqli_staticlookup(what)) {
     return what.offset.name === 'real_escape_string';
   }
-
+  
   return false;
 }
 
@@ -91,9 +91,9 @@ function inspect_call(ast) {
 }
 
 /** flatten linked list of boolean operator `.'
-  * @param ast: AST of the first argument of sql-query functions
-  * @returns: array of each element
-  */
+* @param ast: AST of the first argument of sql-query functions
+* @returns: array of each element
+*/
 function flatten_string_concatenation(ast) {
   if (ast.kind === 'bin' && ast.type === '.') {
     var rest = flatten_string_concatenation(ast.left);
@@ -112,18 +112,21 @@ function flatten_string_concatenation(ast) {
 }
 
 var karma = 0;
+var alert_output = "";
 
 function alert_vulnerability(ast, msg) {
-  console.log(`WARNING at line ${ast.loc.start.line}:`,  msg);
+  alert_output += `WARNING at line ${ast.loc.start.line}: ` + msg + "\n";
   karma += 1;
 }
 
 function report_total_result() {
   if (karma === 0) {
-    console.log("RESULT: OK");
+    alert_output += "RESULT: OK";
   } else {
-    console.log(`RESULT: ${karma} warnings`);
+    alert_output += `RESULT: ${karma} warnings`;
   }
+  
+  console.log(alert_output);  
 }
 
 // check surrounding strings are good for escaping
@@ -141,13 +144,13 @@ function inspect_escaping_strings(left, right) {
   if (right.kind !== 'string') {
     alert_vulnerability(right, "expression before variable is not string");    
   }
-
+  
   var l = left.value;
   var r = right.value;
-
+  
   if ((l[l.length - 1] === "'" && r[0] === "'") ||
-      (l[l.length - 1] === "'" && r[0] === "'")) {
-//    console.log(l, r);
+  (l[l.length - 1] === "'" && r[0] === "'")) {
+    //    console.log(l, r);
     return;
   } else {
     alert_vulnerability(l, "variable is not properly escaped by enclosing strings");
@@ -164,38 +167,42 @@ function inspect_sql_query_string(ast) {
     } else if (value.kind === 'call' && is_sql_escape_function(value.what)) {
       var left = array[index - 1]; // get surrounding string 
       var right = array[index + 1];
-
+      
       inspect_escaping_strings(left, right);
     } else {
       alert_vulnerability(value, 'value is not escaped');
     }
   }, this);
-
+  
 }
 
-// initialize a new PHP parser
-var parser = new engine({
-  // some options :
-  parser: {
-    extractDoc: true
-  },
-  ast: {
-    withPositions: true
+function main(buffer) {
+  // initialize a new PHP parser
+  var parser = new engine({
+    // some options :
+    parser: {
+      extractDoc: true
+    },
+    ast: {
+      withPositions: true
+    }
+  });
+    
+  try {
+    var ast = parser.parseCode(buffer, "stdin");
+    inspect(ast);
+  } catch (e) {
+    console.log(`ERROR: syntax error in '${e.fileName}' at ${e.lineNumber}:${e.columnNumber}`);
+    console.log(`ERROR: no analysis done`);
+    
+    throw e;
+  } finally  {
+    report_total_result();
   }
-});
-
-// read file from stdin
-var buffer = fs.readFileSync('/dev/stdin', 'utf8');
-
-
-try {
-  var ast = parser.parseCode(buffer, "stdin");
-  inspect(ast);
-} catch (e) {
-  console.log(`ERROR: syntax error in '${e.fileName}' at ${e.lineNumber}:${e.columnNumber}`);
-  console.log(`ERROR: no analysis done`);
-
-  throw e;
-} finally  {
-  report_total_result();
 }
+
+// read strings from stdin then inspect
+if (typeof document === 'undefined') {
+  main(fs.readFileSync('/dev/stdin', 'utf8'));
+}
+
