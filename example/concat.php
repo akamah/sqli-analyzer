@@ -3,7 +3,7 @@
 if (1) {
     mysql_query("SELECT * FROM USERS WHERE ID = '" . ($id) . "'");
 } else {
-    mysql_query("SELECT * FROM USERS WHERE ID = '" . htmlspecialchars($id) . "'");
+    mysqli::query("SELECT * FROM USERS WHERE ID = '" . mysql_escape_string($id) . "'");
 }
 
 ?>
