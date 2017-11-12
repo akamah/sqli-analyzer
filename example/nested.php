@@ -10,7 +10,7 @@ if (1) {
                     switch (1) {
                         case 1:
                             break;
-                            mysql_query("SELECT * FROM USERS WHERE ID = '" . ($id) . "'");
+                            mysql_query("SELECT * FROM USERS WHERE ID = '" . mysqli::real_escape_string($id) . "'");
                     }
                 }
             }
