@@ -127,6 +127,7 @@ function report_total_result() {
   }
   
   console.log(alert_output);  
+  alert_output = "";
 }
 
 // check surrounding strings are good for escaping
