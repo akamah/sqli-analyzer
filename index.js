@@ -232,13 +232,12 @@ function main(buffer) {
   try {
     var ast = parser.parseCode(buffer, "stdin");
     inspect(ast);
+    return report_total_result();
   } catch (e) {
     console.log(`ERROR: syntax error in '${e.fileName}' at ${e.lineNumber}:${e.columnNumber}`);
     console.log(`ERROR: no analysis done`);
     
     return "syntax error"
-  } finally  {
-    return report_total_result();
   }
 }
 
@@ -255,7 +254,9 @@ function execute() {
   document.getElementById('output').value = result;
 }
 
-window.onload = function() {
-  document.getElementById('fire').addEventListener('click', execute);
-}
+(function() {
+  window.onload = function() {
+    document.getElementById('fire').addEventListener('click', execute);
+  }
+})();
 

@@ -810,7 +810,12 @@ function report_total_result() {
   }
   
   console.log(alert_output);  
+
+  var tmp = alert_output;
   alert_output = "";
+  karma = 0;
+
+  return tmp;
 }
 
 // check surrounding strings are good for escaping
@@ -885,13 +890,12 @@ function main(buffer) {
   try {
     var ast = parser.parseCode(buffer, "stdin");
     inspect(ast);
+    return report_total_result();
   } catch (e) {
     console.log(`ERROR: syntax error in '${e.fileName}' at ${e.lineNumber}:${e.columnNumber}`);
     console.log(`ERROR: no analysis done`);
     
-    throw e;
-  } finally  {
-    report_total_result();
+    return "syntax error"
   }
 }
 
@@ -900,6 +904,19 @@ function main(buffer) {
 //  var fs = require('fs');
 //  main(fs.readFileSync('/dev/stdin', 'utf8'));
 //}
+
+function execute() {
+  var in_str = document.getElementById('input').value;
+  var result = main(in_str);
+
+  document.getElementById('output').value = result;
+}
+
+(function() {
+  window.onload = function() {
+    document.getElementById('fire').addEventListener('click', execute);
+  }
+})();
 
 
 
