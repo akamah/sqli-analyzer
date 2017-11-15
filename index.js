@@ -5,7 +5,8 @@ var engine = require('php-parser');
 
 //////////// traversing AST
 function inspect(ast) {
-  //  console.log(ast.kind);
+//  console.log(ast.kind);
+
   if (ast == null) {
     return;
   }
@@ -19,6 +20,9 @@ function inspect(ast) {
   }
   if (ast.hasOwnProperty('alternate')) {
     inspect_body(ast.alternate);
+  }
+  if (ast.hasOwnProperty('right')) {
+    inspect(ast.right);
   }
   
   if (ast.kind === 'call') {
@@ -83,10 +87,32 @@ function is_sql_escape_function(what) {
 }
 
 
+function is_encoding_function(what) {
+  if (is_global_function_call(what)) {
+    return ['mysql_set_charset', 'mysqli_set_charset'].includes(what.name);
+  } else if (is_mysqli_staticlookup(what)) {
+    return what.offset.name === 'set_charset';
+  }
+  
+  return false;
+}
+
+var encoding_have_set = false;
+
+function inspect_encoding_function() {
+  encoding_have_set = true;
+}
+
 /////// inspect inside function call
 function inspect_call(ast) {  
   if (is_sql_query_function(ast.what)) {
     inspect_sql_query_string(ast.arguments[0]);
+    return;
+  }
+
+  if (is_encoding_function(ast.what)) {
+    inspect_encoding_function();
+    return;
   }
 }
 
@@ -132,7 +158,7 @@ function report_total_result() {
 
 // check surrounding strings are good for escaping
 // only simple checks are done in this step
-function inspect_escaping_strings(left, right) {
+function inspect_escaping_strings(left, right) {  
   if (left === undefined) {
     alert_vulnerability(left, "bad variable position");    
   }
@@ -149,17 +175,27 @@ function inspect_escaping_strings(left, right) {
   var l = left.value;
   var r = right.value;
   
+  if (l[l.length - 1] === "'" && l[l.length - 2] === "'") {
+    alert_vulnerability(left, "variable is doubly single quoted");    
+  }
+  if (l[l.length - 1] === '"' && l[l.length - 2] === '"') {
+    alert_vulnerability(left, "variable is doubly double quoted");    
+  }
+
   if ((l[l.length - 1] === "'" && r[0] === "'") ||
   (l[l.length - 1] === "'" && r[0] === "'")) {
-    //    console.log(l, r);
     return;
   } else {
-    alert_vulnerability(l, "variable is not properly escaped by enclosing strings");
+    alert_vulnerability(left, "variable is not properly escaped by enclosing strings");
   }
 }
 
 // inspect the first argument of sql_query function
 function inspect_sql_query_string(ast) {
+  if (!encoding_have_set) {
+    alert_vulnerability(ast, "encoding is not set before sql query");
+  }
+
   var flatten = flatten_string_concatenation(ast);
   
   flatten.forEach(function(value, index, array) {
