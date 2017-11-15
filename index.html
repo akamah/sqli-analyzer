@@ -3,9 +3,19 @@
 <head>
 <title>sqli-analizer</title>
 <meta charset="utf-8">
-<script src="./bundle.js"></script>
+<style>
+textarea {
+  font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+}
+</style>
 </head>
 <body>
-    <script>console.log(main)</script>
+    <script src="./bundle.js"></script>
+
+    <textarea id="input" cols="120" rows="30"></textarea>
+    <br/>
+    <textarea id="output" cols="120" rows="5" readonly>input PHP code above and push the button below</textarea>
+    <br/>
+    <button id="fire">analyze</button>
 </body>
 </html>
