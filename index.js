@@ -1,4 +1,3 @@
-var fs = require('fs');
 var path = require('path');
 var engine = require('php-parser');
 
@@ -239,7 +238,8 @@ function main(buffer) {
 }
 
 // read strings from stdin then inspect
-if (typeof document === 'undefined') {
-  main(fs.readFileSync('/dev/stdin', 'utf8'));
-}
+//if (typeof document === 'undefined') {
+//  var fs = require('fs');
+//  main(fs.readFileSync('/dev/stdin', 'utf8'));
+//}
 
