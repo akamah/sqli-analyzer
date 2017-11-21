@@ -1,5 +1,5 @@
 <?php
 
-mysql_query("SELECT * FROM USERS WHERE ID = '{$user->id}'");
+$conn->mysqli_query("SELECT * FROM USERS WHERE ID = '{$user->id}'");
 
 ?>

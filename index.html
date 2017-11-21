@@ -6,16 +6,39 @@
 <style>
 textarea {
   font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+  width: 70%;
 }
+#description {
+  float: right;
+  width: 27%;
+}
+
 </style>
 </head>
 <body>
     <script src="./bundle.js"></script>
 
-    <textarea id="input" cols="120" rows="30" placeholder="&lt;?php echo 'input PHP code here!' ?&gt;"></textarea>
-    <br/>
-    <textarea id="output" cols="120" rows="5" readonly placeholder="input PHP code above and push the button below"></textarea>
-    <br/>
+    <textarea id="input" cols="100" rows="30" placeholder="&lt;?php echo 'input PHP code here!' ?&gt;"></textarea>
+    <div id="description">
+      <h2>チームD</h2>
+      <p>SQLインジェクションを起こす可能性のあるPHPコードの解析プログラム</p>
+      <h3>主な機能</h3>
+      <ul>
+        <li>古いAPI呼び出しの検出 (mysql_queryなど)</li>
+        <li>ホワイトリスト形式によるSQLインジェクションの検出</li>
+        <li>誤って二重にシングルクオートを重ねた場合にエラーを出力</li>
+      </ul>
+      <h3>制限</h3>
+      <ul>
+        <li>エンジンはMySQL (mysqli) にのみ対応</li>
+        <li>変数に代入されたクエリ文字列は解析できない</li>
+      </ul>
+      <h3>利用したライブラリ</h3>
+      <p><a href="https://github.com/glayzzle/php-parser">php-parser</a></p>
+    </div>      
+    <br>
+    <textarea id="output" cols="100" rows="5" readonly placeholder="input PHP code above and push the button below"></textarea>
+    <br>
     <button id="fire">analyze</button>
 </body>
 </html>

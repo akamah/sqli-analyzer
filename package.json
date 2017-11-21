@@ -10,8 +10,5 @@
   "license": "ISC",
   "dependencies": {
     "php-parser": "^2.1.0"
-  },
-  "devDependencies": {
-    "html-loader": "^0.5.1"
   }
 }

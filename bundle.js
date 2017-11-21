@@ -662,9 +662,7 @@ var engine = __webpack_require__(15);
 
 //////////// traversing AST
 function inspect(ast) {
-//  console.log(ast.kind);
-
-  if (ast == null) {
+  if (!ast) {
     return;
   }
   
@@ -701,76 +699,72 @@ function inspect_body(body) {
   }
 }
 
-//////////// utility function to inspect AST
+//////////// utility functions to inspect AST
 function is_global_function_call(what) {
   return what.kind === 'identifier';
 }
 
-function is_mysqli_staticlookup(what) {
-  return what.kind === 'staticlookup' && 
-  what.what.kind === 'identifier' &&
-  what.what.name === 'mysqli' &&
-  what.offset.kind === 'constref';
-}
-
-function is_PDO_propertylookup(what) {
+function is_propertylookup(what) {
   return what.kind === 'propertylookup' && 
   what.offset.kind === 'constref';
 }
 
-
-function is_sql_query_function(what) {
+function is_old_mysql_api(what) {
   if (is_global_function_call(what)) {
-    return ['mysql_query', 'mysqli_query'].includes(what.name);
-  } else if (is_PDO_propertylookup(what)) {
-    return what.offset.name === 'query';
-  } else if (is_mysqli_staticlookup(what)) {
-    return what.offset.name === 'query';
+    return ['mysql_query', 'mysql_escape_string', 'mysql_real_escape_string', 'mysql_set_charset'].includes(what.name);
   }
-  
+  return false;
+}
+
+function inspect_sql_query_function(ast) {
+  var what = ast.what;
+  if (is_global_function_call(what)) {
+    if (['mysqli_query'].includes(what.name)) {
+      inspect_sql_query_string(ast.arguments[1]);
+    }
+  } else if (is_propertylookup(what)) {
+    if (['query'].includes(what.offset.name)) {
+      inspect_sql_query_string(ast.arguments[0]);
+    }
+  }
+  return false;
+}
+
+function inspect_encoding_function(ast) {
+  var what = ast.what;
+  if (is_global_function_call(what)) {
+    if (['mysqli_set_charset'].includes(what.name)) {
+      encoding_have_set = true;
+    }
+  } else if (is_propertylookup(what)) {
+    if (what.offset.name === 'set_charset') {
+      encoding_have_set = true;
+    }
+  }
   return false;
 }
 
 function is_sql_escape_function(what) {
   if (is_global_function_call(what)) {
-    return ['mysql_escape_string', 'mysql_real_escape_string', 'mysqli_escape_string', 'mysqli_real_escape_string'].includes(what.name);
-  } else if (is_PDO_propertylookup(what)) {
-    return what.offset.name === 'quote';
-  } else if (is_mysqli_staticlookup(what)) {
-    return what.offset.name === 'real_escape_string';
+    return ['mysqli_escape_string', 'mysqli_real_escape_string'].includes(what.name);
+  } else if (is_propertylookup(what)) {
+    return ['real_escape_string', 'escape_string'].includes(what.offset.name);
   }
-  
-  return false;
-}
-
-
-function is_encoding_function(what) {
-  if (is_global_function_call(what)) {
-    return ['mysql_set_charset', 'mysqli_set_charset'].includes(what.name);
-  } else if (is_mysqli_staticlookup(what)) {
-    return what.offset.name === 'set_charset';
-  }
-  
   return false;
 }
 
 var encoding_have_set = false;
 
-function inspect_encoding_function() {
-  encoding_have_set = true;
-}
 
 /////// inspect inside function call
-function inspect_call(ast) {  
-  if (is_sql_query_function(ast.what)) {
-    inspect_sql_query_string(ast.arguments[0]);
+function inspect_call(ast) { 
+  if (is_old_mysql_api(ast.what)) {
+    alert_vulnerability(ast, "old mysql call is deprecated. use mysqli");
     return;
   }
-
-  if (is_encoding_function(ast.what)) {
-    inspect_encoding_function();
-    return;
-  }
+  
+  inspect_sql_query_function(ast);
+  inspect_encoding_function(ast);
 }
 
 /** flatten linked list of boolean operator `.'
@@ -798,7 +792,13 @@ var karma = 0;
 var alert_output = "";
 
 function alert_vulnerability(ast, msg) {
-  alert_output += `WARNING at line ${ast.loc.start.line}: ` + msg + "\n";
+  var loc = "unknown";
+
+  if (ast) {
+    loc = ast.loc.start.line + ":" + ast.loc.start.column;
+  }
+
+  alert_output += `WARNING at line ${loc}: ` + msg + "\n";
   karma += 1;
 }
 
@@ -820,28 +820,34 @@ function report_total_result() {
 
 // check surrounding strings are good for escaping
 // only simple checks are done in this step
-function inspect_escaping_strings(left, right) {  
+function inspect_escaping_strings(left, right, value) {  
   if (left === undefined) {
-    alert_vulnerability(left, "bad variable position");    
+    alert_vulnerability(value, "bad variable position"); 
+    return;   
   }
   if (right === undefined) {
-    alert_vulnerability(right, "bad variable position");    
+    alert_vulnerability(value, "bad variable position");    
+    return;
   }
   if (left.kind !== 'string') {
     alert_vulnerability(left, "expression before variable is not string");    
+    return;
   }
   if (right.kind !== 'string') {
     alert_vulnerability(right, "expression before variable is not string");    
+    return;
   }
   
   var l = left.value;
   var r = right.value;
   
   if (l[l.length - 1] === "'" && l[l.length - 2] === "'") {
-    alert_vulnerability(left, "variable is doubly single quoted");    
+    alert_vulnerability(left, "variable is doubly single quoted");
+    return;    
   }
   if (l[l.length - 1] === '"' && l[l.length - 2] === '"') {
     alert_vulnerability(left, "variable is doubly double quoted");    
+    return;
   }
 
   if ((l[l.length - 1] === "'" && r[0] === "'") ||
@@ -854,6 +860,11 @@ function inspect_escaping_strings(left, right) {
 
 // inspect the first argument of sql_query function
 function inspect_sql_query_string(ast) {
+  if (!ast) {
+    alert_vulnerability(ast, "query argument is null");
+    return;
+  }
+
   if (!encoding_have_set) {
     alert_vulnerability(ast, "encoding is not set before sql query");
   }
@@ -863,11 +874,13 @@ function inspect_sql_query_string(ast) {
   flatten.forEach(function(value, index, array) {
     if (value.kind === 'string') {
       // ok
+    } else if (value.kind === 'call' && is_old_mysql_api(value.what)) {
+      alert_vulnerability(value, 'calling old escape function. use mysqli');
     } else if (value.kind === 'call' && is_sql_escape_function(value.what)) {
       var left = array[index - 1]; // get surrounding string 
       var right = array[index + 1];
       
-      inspect_escaping_strings(left, right);
+      inspect_escaping_strings(left, right, value);
     } else {
       alert_vulnerability(value, 'value is not escaped');
     }
@@ -888,14 +901,15 @@ function main(buffer) {
   });
     
   try {
-    var ast = parser.parseCode(buffer, "stdin");
+    var ast = parser.parseCode(buffer, "input");
     inspect(ast);
     return report_total_result();
   } catch (e) {
-    console.log(`ERROR: syntax error in '${e.fileName}' at ${e.lineNumber}:${e.columnNumber}`);
-    console.log(`ERROR: no analysis done`);
+    var msg = `ERROR: syntax error in '${e.fileName}' at ${e.lineNumber}:${e.columnNumber}\n`;
+    msg += `ERROR: no analysis done`;
     
-    return "syntax error"
+    console.log(e);
+    return msg;
   }
 }
 
@@ -11777,3 +11791,4 @@ module.exports = YieldFrom;
 
 /***/ })
 /******/ ]);
+//# sourceMappingURL=bundle.js.map
