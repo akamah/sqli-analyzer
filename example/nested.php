@@ -1,7 +1,8 @@
 <?php
 
+mysqli_set_charset($con, 'utf8');
+
 if (1) {
-    mysql_query("SELECT * FROM USERS WHERE ID = '" . ($id) . "'");
 } else {
     while (1) {
         do {
@@ -10,7 +11,7 @@ if (1) {
                     switch (1) {
                         case 1:
                             break;
-                            mysqli_query($conn, "SELECT * FROM USERS WHERE ID = '{$id}'");
+                            mysqli_query($conn, "SELECT * FROM USERS WHERE ID = '" . $id . "'");
                     }
                 }
             }
