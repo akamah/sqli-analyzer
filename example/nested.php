@@ -1,5 +1,6 @@
 <?php
 
+$con = mysqli_connect("127.0.0.1", "username", "password", "database");
 mysqli_set_charset($con, 'utf8');
 
 if (1) {
@@ -11,7 +12,7 @@ if (1) {
                     switch (1) {
                         case 1:
                             break;
-                            mysqli_query($conn, "SELECT * FROM USERS WHERE ID = '" . $id . "'");
+                            mysqli_query($con, "SELECT * FROM USERS WHERE ID = '" . $id . "'");
                     }
                 }
             }
