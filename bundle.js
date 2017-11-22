@@ -820,7 +820,8 @@ function report_total_result() {
   var tmp = alert_output;
   alert_output = "";
   karma = 0;
-
+  encoding_have_set = false;
+  
   return tmp;
 }
 
