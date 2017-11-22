@@ -679,7 +679,13 @@ function inspect(ast) {
   if (ast.hasOwnProperty('right')) {
     inspect(ast.right);
   }
-  
+  if (ast.hasOwnProperty('test')) {
+    inspect(ast.test);
+  }
+  if (ast.hasOwnProperty('what')) {
+    inspect(ast.what);
+  }
+
   if (ast.kind === 'call') {
     inspect_call(ast);
   }
