@@ -1,3 +1,7 @@
+# sqli-analyzer
+This program detects SQL injection vulnerabilities in a PHP program.
+
+
 # how to use
 https://akamah.github.io/sqli-analyzer/
 
